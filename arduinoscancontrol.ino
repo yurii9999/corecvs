@@ -7,14 +7,14 @@ boolean stringComplete = false;  // whether the string is complete
 
 // Pin 13 has an LED connected on most Arduino boards.
 // give it a name:
-int led = 13;
+const int led = 13;
 
-int enabled = 2;
-int dir = 3;
-int step  = 6;
-int laser = 5;
-int endPin = 12;
-int homePin = 11;
+const int enabled = 2;
+const int dir = 3;
+const int step  = 6;
+const int laser = 5;
+//const int endPin = 12;
+const int homePin = 11;
 
 enum CommandModeType {
   MOVE,
@@ -32,7 +32,7 @@ unsigned long long dist = 0;
 unsigned long long stepsOneRound = 3200;
 unsigned long long stepsOnePoint = 32;
 unsigned long long stepsPending = 0;
-long long stepsMoved = 0
+long long stepsMoved = 0;
 bool motorEnabled;
 CommandModeType currentCommand = IDLE;
 
@@ -53,7 +53,7 @@ void setup() {
   pinMode(laser, OUTPUT);
 
   pinMode(homePin,INPUT);
-  pinMode(endPin,INPUT);
+//  pinMode(endPin,INPUT);
 
   digitalWrite(enabled, HIGH);
 }
@@ -89,8 +89,9 @@ void loop() {
         break;
       }
     case HOME: {
-        stepsPending = 1000000000;
         digitalWrite(dir,LOW);
+        stepsPending = 1000000000;
+        digitalWrite(enabled, LOW);
         currentCommand=IDLE;
         break;
     }
@@ -110,14 +111,14 @@ void loop() {
         }
       }
   }
-/*
-  if(digitalRead(homePin) == LOW)
+  if(digitalRead(homePin) == HIGH)
   {
     stepsPending = 1000;
     digitalWrite(dir,HIGH);
+    //Serial.println("HOMED");
     currentCommand = IDLE;
   }
-  if(digitalRead(endPin == LOW))
+  /*if(digitalRead(endPin == LOW))
   {
     stepsPending = 1000;
     digitalWrite(dir,LOW);

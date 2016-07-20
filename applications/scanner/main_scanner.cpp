@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 
         //source = string("prec:/media/disk/home/alexander/frames/framegrabber/frame%06d_c%d.rawg");
         //source = string("v4l2:/dev/video0,/dev/video1:1/10");
-        source = QString(argv[2]);
+        source = QString(argv[1]);
 
     } else {
         source = QString(argv[1]);
@@ -80,14 +80,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (argc == 3)
-       {
+    ScannerDialog SD;
 
-        MainWindow mainWindow(new ScannerDialog(QString(argv[1])), source, params, true);
-        }
-    else
-        MainWindow mainWindow(new ScannerDialog(), source, params, true);
+    if ((argc == 3) && (argv[2] != "auto")) SD.addScannerPath(QString(argv[2]));
 
+    MainWindow mainWindow(&SD, source, params, true);
     app.exec();
 
     cout << "Exiting Host application  \n";

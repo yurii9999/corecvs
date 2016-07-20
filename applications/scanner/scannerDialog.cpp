@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <QLayout>
+#include <QTimer>
 #include <QDir>
 #include <QFileDialog>
 #include <QString>
@@ -28,9 +29,8 @@ ScannerDialog::ScannerDialog()
 
 }
 
-ScannerDialog::ScannerDialog(QString scannerPath)
+void ScannerDialog::addScannerPath(QString scannerPath)
 {
-    ScannerDialog();
     scanCtrl.openDevice(scannerPath);
 }
 
@@ -52,6 +52,9 @@ void ScannerDialog::initParameterWidgets()
     cloud = static_cast<CloudViewDialog *>(createAdditionalWindow("3d view", oglWindow, QIcon()));
     graph = static_cast<GraphPlotDialog *>(createAdditionalWindow("Graph view", graphWindow, QIcon()));
     addImage = static_cast<AdvancedImageWidget *>(createAdditionalWindow("Addition", imageWindow, QIcon()));
+    brightImage = static_cast<AdvancedImageWidget *>(createAdditionalWindow("Brightness", imageWindow, QIcon()));
+    channelImage = static_cast<AdvancedImageWidget *>(createAdditionalWindow("Channel", imageWindow, QIcon(":/new/colors/colors/color_wheel.png")));
+    cornerImage = static_cast<AdvancedImageWidget *>(createAdditionalWindow("Corner", imageWindow, QIcon()));
 
 
     //connect(mScannerParametersControlWidget->ui()->choosePathButton, SIGNAL(clicked()), this, SLOT(openPathSelectDialog()));
@@ -104,8 +107,8 @@ void ScannerDialog::createCalculator()
     connect(mCalculator, SIGNAL(errorMessage(QString)),
             this,        SLOT  (errorMessage(QString)), Qt::BlockingQueuedConnection);
     */
-    connect(calculatorTyped, SIGNAL(scanningStateChanged(ScannerThread::ScanningState)), this,
-                SLOT(scanningStateChanged(ScannerThread::ScanningState)), Qt::QueuedConnection);
+    connect(calculatorTyped, SIGNAL(scanningStateChanged(ScannerThread::ScanningState, bool)), this,
+                SLOT(scanningStateChanged(ScannerThread::ScanningState, bool)), Qt::QueuedConnection);
 
 }
 
@@ -153,7 +156,7 @@ void ScannerDialog::resetRecording()
     emit recordingReset();
 }*/
 
-void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
+void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn)
 {
 #if 0
     switch (state)
@@ -196,22 +199,12 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
         {
             scanCtrl.laserOff();
             scanCtrl.home();
-            while(scanCtrl.getPos());
 
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
+            //sleep(30);
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
+            QTimer::singleShot(30000, this, SLOT(homeingWaitingFinished()));
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
-
-            emit scanningStateChanged(ScannerThread::IDLE);
             break;
         }
 
@@ -222,11 +215,23 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
             scanCtrl.step(10000);
 
             //kokokokoko
+           // sleep(10);
 
-            scanCtrl.laserOff();
-            emit scanningStateChanged(ScannerThread::PAUSED);
+            //scanCtrl.laserOff();
+            emit scanningStateChanged(ScannerThread::PAUSED, false);
+            break;
         }
     }
+}
+
+void ScannerDialog::homeingWaitingFinished()
+{
+    SYNC_PRINT(("ScannerDialog::homeingWaitingFinished():called"));
+    if (true)
+        emit scanningStateChanged(ScannerThread::SCANNING, true);
+    else
+        emit scanningStateChanged(ScannerThread::IDLE, false);
+
 }
 
 void ScannerDialog::processResult()
@@ -263,7 +268,10 @@ void ScannerDialog::processResult()
                 graph->addGraphPoint("R_conv", fod->cutConvolution[i]);
             }
             graph->update();
-            addImage->setImage(QSharedPointer<QImage>(new RGB24Image(fod->convolution)));
+            if (fod->convolution) addImage    ->setImage(QSharedPointer<QImage>(new RGB24Image(fod->convolution)));
+            if (fod->channel)     channelImage->setImage(QSharedPointer<QImage>(new G8Image(fod->channel)));
+            if (fod->brightness)  brightImage ->setImage(QSharedPointer<QImage>(new G8Image(fod->brightness)));
+            if (fod->corners)     cornerImage ->setImage(QSharedPointer<QImage>(new G8Image(fod->corners)));
         }
 
         delete fod;

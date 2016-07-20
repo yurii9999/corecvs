@@ -28,9 +28,9 @@ class ScannerDialog : public BaseHostDialog
 public:
 
     ScannerDialog();
-    ScannerDialog(QString scannerPath);
     ~ScannerDialog();
 
+    void addScannerPath(QString scannerPath);
 
     virtual void initParameterWidgets();
     virtual void createCalculator();
@@ -44,12 +44,13 @@ public slots:
     void openPathSelectDialog();
    // void toggleRecording();
   //  void resetRecording();
-    void scanningStateChanged(ScannerThread::ScanningState);
+    void scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn);
     void scannerControlParametersChanged(QSharedPointer<ScannerParameters> params);
 
     virtual void processResult();
 
-    void errorMessage(QString message);    
+    void errorMessage(QString message);
+    void homeingWaitingFinished();
 private:
     bool mIsScanning;
     ScannerControl scanCtrl;
@@ -62,6 +63,9 @@ private:
     GraphPlotDialog *graph = NULL;
     GraphPlotDialog *graphConvolution = NULL;
     AdvancedImageWidget *addImage = NULL;
+	AdvancedImageWidget *brightImage = NULL;
+    AdvancedImageWidget *channelImage = NULL;
+    AdvancedImageWidget *cornerImage = NULL;
 
 };
 

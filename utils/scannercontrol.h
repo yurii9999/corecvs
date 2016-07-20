@@ -10,6 +10,7 @@ class ScannerControl : public QObject
     Q_OBJECT
 public:
     ScannerControl();
+
 private:
     bool sendCommand(QString command);
 
@@ -24,7 +25,7 @@ public slots:
     bool  home();
     //bool end();
 
-private slots:
+public slots:
     void getMessage();
 
 signals:
@@ -39,6 +40,7 @@ private:
     int dir;
 public:
     const qint32 stepsOneRound = 200;
+    bool moving;
 };
 
 

@@ -35,12 +35,17 @@ public:
     vector<double> cut;
     vector<double> cutConvolution;
 
-
+    G8Buffer *brightness = NULL;
+    G8Buffer *corners   = NULL;
     RGB24Buffer *convolution = NULL;
+    G8Buffer *channel = NULL;
 
     virtual ~ScannerOutputData() override
     {
+        delete_safe(brightness);
         delete_safe(convolution);
+        delete_safe(channel);
+        delete_safe(corners);
     }
 
 };
@@ -78,7 +83,7 @@ public slots:
 
 
 signals:
-    void scanningStateChanged(ScannerThread::ScanningState state);
+    void scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn);
 
 protected:
     virtual AbstractOutputData *processNewData();

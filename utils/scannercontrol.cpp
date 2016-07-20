@@ -5,7 +5,8 @@
 ScannerControl::ScannerControl()
 {
     port = new QSerialPort();
-    pos = 0;
+    pos = 1000;
+    moving = false;
     connect(port,SIGNAL(readyRead()),this,SLOT(getMessage()));
 }
 bool ScannerControl::openDevice(QString name)
@@ -22,7 +23,7 @@ bool ScannerControl::openDevice(QString name)
         port->setDataTerminalReady(false);
         port->setRequestToSend(false);
         port->flush();
-        QThread::msleep(1000);
+        //QThread::msleep(1000);
         //sendCommand("HOME\n");
         return true;
     }
@@ -35,10 +36,7 @@ void ScannerControl::close(){
         port->close();
 }
 bool ScannerControl::home(){
-    bool b = sendCommand("HOME");
-    if (b)
-        pos = 0;
-    return b;
+    return sendCommand("HOME\n");
 }
 
 bool ScannerControl::laserOn(){
@@ -48,15 +46,19 @@ bool ScannerControl::laserOn(){
 bool ScannerControl::laserOff(){
     return sendCommand("LASER_OFF\n");
 }
+
 /*
  * negative argument moves back, positive - forward
  */
 bool ScannerControl::step(qint64 dist)
 {
+    bool back = (dist < 0);
+    dist = abs(dist);
+
     QString command;
     command.sprintf("MOVE %i\n",quint64(dist));
     qDebug()<<command;
-    if(!sendCommand(dist <0? "BACK\n" : "FORWARD\n"))
+    if(!sendCommand(back ? "BACK\n" : "FORWARD\n"))
         return false;
     if(!sendCommand(command))
         return false;
@@ -83,7 +85,7 @@ void ScannerControl::getMessage()
 {
     QString message = port->readAll();
     qDebug() << message;
-    if(message.contains("STOP")){
+    if(message.contains("STOP"))
         emit endOfMove();
-    }
 }
+
