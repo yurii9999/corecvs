@@ -44,13 +44,15 @@ public slots:
     void openPathSelectDialog();
    // void toggleRecording();
   //  void resetRecording();
-    void scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn);
+    void scanningStateChanged(ScannerThread::ScanningState state);
     void scannerControlParametersChanged(QSharedPointer<ScannerParameters> params);
 
     virtual void processResult();
 
     void errorMessage(QString message);
     void homeingWaitingFinished();
+    void laserOn();
+    void laserOff();
 private:
     bool mIsScanning;
     ScannerControl scanCtrl;

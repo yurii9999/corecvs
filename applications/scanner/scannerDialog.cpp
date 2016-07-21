@@ -107,8 +107,8 @@ void ScannerDialog::createCalculator()
     connect(mCalculator, SIGNAL(errorMessage(QString)),
             this,        SLOT  (errorMessage(QString)), Qt::BlockingQueuedConnection);
     */
-    connect(calculatorTyped, SIGNAL(scanningStateChanged(ScannerThread::ScanningState, bool)), this,
-                SLOT(scanningStateChanged(ScannerThread::ScanningState, bool)), Qt::QueuedConnection);
+    connect(calculatorTyped, SIGNAL(scanningStateChanged(ScannerThread::ScanningState)), this,
+                SLOT(scanningStateChanged(ScannerThread::ScanningState)), Qt::QueuedConnection);
 
 }
 
@@ -156,7 +156,7 @@ void ScannerDialog::resetRecording()
     emit recordingReset();
 }*/
 
-void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn)
+void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
 {
 #if 0
     switch (state)
@@ -203,15 +203,37 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, boo
             //{
                 //SYNC_PRINT(("FUCK\n"));
             //};
-            scanCtrl.laserOn();
+            //emit scanningStateChanged(ScannerThread::IDLE, ScanOn);
             //scanCtrl.step(10000);
             //while (scanCtrl.lock){};
             //scanCtrl.laserOff();
 
             //sleep(30);
 
-            //QTimer::singleShot(30000, this, SLOT(homeingWaitingFinished()));
+            QTimer::singleShot(100, this, SLOT(homeingWaitingFinished());
 
+            break;
+        }
+
+        case ScannerThread::IDLE:
+        {
+            if (scanCtrl.lock)
+            {
+                SYNC_PRINT(("1"));
+                //emit scanningStateChanged(ScannerThread::IDLE, ScanOn);
+                QTimer::singleShot(100, this, SLOT(homeingWaitingFinished()));
+
+            }
+            else{
+                QTimer::singleShot(500, this, SLOT(laserOn()));
+                QTimer::singleShot(1000, this, SLOT(laserOff()));
+                QTimer::singleShot(1500, this, SLOT(laserOn()));
+                QTimer::singleShot(2000, this, SLOT(laserOff()));
+                QTimer::singleShot(2500, this, SLOT(laserOn()));
+                QTimer::singleShot(3000, this, SLOT(laserOff()));
+
+                SYNC_PRINT(("\nREADY TO SCAN\n"));
+            }
             break;
         }
 
@@ -225,7 +247,7 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, boo
            // sleep(10);
 
             //scanCtrl.laserOff();
-            emit scanningStateChanged(ScannerThread::PAUSED, false);
+            emit scanningStateChanged(ScannerThread::PAUSED);
             break;
         }
     }
@@ -233,12 +255,21 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, boo
 
 void ScannerDialog::homeingWaitingFinished()
 {
-    SYNC_PRINT(("ScannerDialog::homeingWaitingFinished():called"));
+    //SYNC_PRINT(("ScannerDialog::homeingWaitingFinished():called"));
     if (true)
-        emit scanningStateChanged(ScannerThread::SCANNING, true);
+        emit scanningStateChanged(ScannerThread::IDLE);
     else
-        emit scanningStateChanged(ScannerThread::IDLE, false);
+        emit scanningStateChanged(ScannerThread::IDLE);
 
+}
+
+void ScannerDialog::laserOn()
+{
+        scanCtrl.laserOn();
+}
+void ScannerDialog::laserOff()
+{
+        scanCtrl.laserOff();
 }
 
 void ScannerDialog::processResult()
