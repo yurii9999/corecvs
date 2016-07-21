@@ -109,4 +109,3 @@ void ScannerControl::getMessage()
         lock = false;
     }
 }
-

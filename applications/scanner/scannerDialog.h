@@ -30,11 +30,12 @@ public:
     ScannerDialog();
     ~ScannerDialog();
 
-    void addScannerPath(QString scannerPath);
 
     virtual void initParameterWidgets();
     virtual void createCalculator();
     virtual void connectFinishedRecalculation();
+
+    void addScannerPath(QString scannerPath);
 
 signals:
     void recordingTriggered();
@@ -44,18 +45,25 @@ public slots:
     void openPathSelectDialog();
    // void toggleRecording();
   //  void resetRecording();
-    void scanningStateChanged(ScannerThread::ScanningState state);
+    void scanningStateChanged(ScannerThread::ScanningState);
     void scannerControlParametersChanged(QSharedPointer<ScannerParameters> params);
 
     virtual void processResult();
 
     void errorMessage(QString message);
+
     void homeingWaitingFinished();
     void laserOn();
     void laserOff();
+    void startscan();
 private:
     bool mIsScanning;
+
+
+
     ScannerControl scanCtrl;
+
+    ScannerControl scanner;
 
     ScannerParametersControlWidgetAdv *mScannerParametersControlWidget;
 
@@ -65,7 +73,7 @@ private:
     GraphPlotDialog *graph = NULL;
     GraphPlotDialog *graphConvolution = NULL;
     AdvancedImageWidget *addImage = NULL;
-	AdvancedImageWidget *brightImage = NULL;
+    AdvancedImageWidget *brightImage = NULL;
     AdvancedImageWidget *channelImage = NULL;
     AdvancedImageWidget *cornerImage = NULL;
 

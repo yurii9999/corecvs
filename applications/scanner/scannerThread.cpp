@@ -39,8 +39,10 @@ ScannerThread::ScannerThread() :
    BaseCalculationThread()
   , mScanningStarted(false)
   , mIsScanning(false)
+  , timeToSave(false)
   , mFrameCount(0)
   , mPath("")
+  , scanCount(0)
   , mScannerParameters(NULL)
 {
     qRegisterMetaType<ScannerThread::ScanningState>("ScannerThread::ScanningState");
@@ -56,17 +58,14 @@ void ScannerThread::toggleScanning()
         {
             cout << "ScannerThread: Internal error. Recording toggled but no parameters provided." << endl;
         }
-
         if (mScannerParameters->path().empty())
         {
             cout << "ScannerThread: Path is empty" << endl;
         }
-
         if (mScannerParameters->fileTemplate().empty())
         {
             cout << "ScannerThread: File template is empty\n";
         }
-
         if (!mRecordingStarted)
         {
             mRecordingStarted = true;
@@ -89,16 +88,28 @@ void ScannerThread::toggleScanning()
 
     if (!mIsScanning)
     {
-
+        emit scanningStateChanged(HOMEING);
         mIsScanning = true;
-        emit scanningStateChanged(HOMEING, true);
     }
-  /*  else
-    {
-        mIsScanning = false;
-        printf("Scanning paused.\n");
-        emit scanningStateChanged(PAUSED);
-    }*/
+}
+
+/*void ScannerThread::homeingWaitingFinished()
+{
+    if (mIsScanning)
+       {
+           mScanningStarted = true;
+       }
+    else
+        emit scanningStateChanged(IDLE);
+}*/
+
+void ScannerThread::scanningWaitingFinished()
+{
+    emit scanningStateChanged(PAUSED);
+    timeToSave = true;
+    mScanningStarted = false;
+
+    mIsScanning = false;
 
 }
 
@@ -185,193 +196,188 @@ public:
 AbstractOutputData* ScannerThread::processNewData()
 {
     Statistics stats;
-    PreciseTimer start = PreciseTimer::currentTime();
+        PreciseTimer start = PreciseTimer::currentTime();
 
-    bool have_params = !(mScannerParameters.isNull());
-    bool two_frames = have_params && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber); // FIXME: additional params needed here
+        bool have_params = !(mScannerParameters.isNull());
+        bool two_frames = have_params && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber); // FIXME: additional params needed here
 
-    // We are missing data, so pause calculation
-    if ((!mFrames.getCurrentFrame(Frames::LEFT_FRAME) ) ||
-       ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
-    {
-        //emit errorMessage("Capture error.");
-        pauseCalculation();
-    }
-
-    recalculateCache();
-
-    RGB24Buffer *frame = mFrames.getCurrentRgbFrame(Frames::LEFT_FRAME);
-    RGB24Buffer out(frame);
-    ScannerOutputData* outputData = new ScannerOutputData();
-
-    double kernel[21] = {-0.00129578, -0.00141479, -0.00138429, -0.00114991, -0.000683535, 0, 0.000834312, 0.00170611, 0.00247478, 0.00300321, 0.00319154, 0.00300321, 0.00247478, 0.00170611, 0.000834312, 0, -0.000683535, -0.00114991, -0.00138429, -0.00141479, -0.00129578};
-    enum {
-        KERNEL_SIZE = CORE_COUNT_OF(kernel),
-        OFFSET = KERNEL_SIZE / 2,
-    };
-    double divisor = total(kernel, KERNEL_SIZE);
-
-    if (frame != NULL && !mScannerParameters.isNull())
-    {
-        outputData->convolution = new RGB24Buffer(frame->getSize());
-        vector<int> laserPoints;
-        laserPoints.reserve(frame->w);
-
-        if (mScannerParameters->calculateConvolution())
+        // We are missing data, so pause calculation
+        if ((!mFrames.getCurrentFrame(Frames::LEFT_FRAME) ) ||
+           ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
         {
-            double values[frame->h];
+            //emit errorMessage("Capture error.");
+            pauseCalculation();
+        }
 
-            for (int i = 0; i < frame->h; i++)
-                values[i] = 0.0;
+        recalculateCache();
 
-            double sum = 0.0;
-            double max = 0.0;
-            int maxIndex = 0;
+        RGB24Buffer *frame = mFrames.getCurrentRgbFrame(Frames::LEFT_FRAME);
+        RGB24Buffer out(frame);
+        ScannerOutputData* outputData = new ScannerOutputData();
 
-            for (int j = 0; j < frame->w; j++)
+        double kernel[21] = {-0.00129578, -0.00141479, -0.00138429, -0.00114991, -0.000683535, 0, 0.000834312, 0.00170611, 0.00247478, 0.00300321, 0.00319154, 0.00300321, 0.00247478, 0.00170611, 0.000834312, 0, -0.000683535, -0.00114991, -0.00138429, -0.00141479, -0.00129578};
+        enum {
+            KERNEL_SIZE = CORE_COUNT_OF(kernel),
+            OFFSET = KERNEL_SIZE / 2,
+        };
+        double divisor = total(kernel, KERNEL_SIZE);
+
+        if (frame != NULL && !mScannerParameters.isNull())
+        {
+            outputData->convolution = new RGB24Buffer(frame->getSize());
+            vector<int> laserPoints;
+            laserPoints.reserve(frame->w);
+
+            if (mScannerParameters->calculateConvolution())
             {
-                max = 0.0;
+                double values[frame->h];
 
-                for (int i = OFFSET; i < (frame->h - OFFSET); i++)
+                for (int i = 0; i < frame->h; i++)
+                    values[i] = 0.0;
+
+                double sum = 0.0;
+                double max = 0.0;
+                int maxIndex = 0;
+
+                for (int j = 0; j < frame->w; j++)
                 {
-                    sum = 0.0;
+                    max = 0.0;
 
-                    for (int c = 0; c < KERNEL_SIZE; c++)
-                        sum += kernel[c]*frame->element(i+OFFSET-c,j).r();
-
-                    outputData->convolution->setElement(i,j,RGBColor((uint8_t)(sum/divisor), 0, 0));
-                    values[i] = sum;
-                }
-
-                for (int c = 0; c < frame->h; c++) {
-
-                    if (values[c] > max)
+                    for (int i = OFFSET; i < (frame->h - OFFSET); i++)
                     {
-                        max = values[c];
-                        maxIndex = c;
+                        sum = 0.0;
+
+                        for (int c = 0; c < KERNEL_SIZE; c++)
+                            sum += kernel[c]*frame->element(i+OFFSET-c,j).r();
+
+                        outputData->convolution->setElement(i,j,RGBColor((uint8_t)(sum/divisor), 0, 0));
+                        values[i] = sum;
                     }
+
+                    for (int c = 0; c < frame->h; c++) {
+
+                        if (values[c] > max)
+                        {
+                            max = values[c];
+                            maxIndex = c;
+                        }
+                    }
+
+                    if (j == out.w/2)
+                        for (int i = 0; i < out.h; i++)
+                            outputData->cutConvolution.push_back(values[i]/divisor);
+
+                    laserPoints.push_back(maxIndex);
+                    out.element(maxIndex, j) = RGBColor::Cyan();
+
+                }
+            }
+
+            outputData->cut.reserve(out.h);
+            outputData->cutConvolution.reserve(out.h);
+
+            for (int i = 0; i < out.h; i++)
+                outputData->cut.push_back(frame->element(i,out.w/2).r());
+
+            GentryState state;
+            Vector2dd resolution = Vector2dd(frame->w, frame->h);
+
+            state.camera.intrinsics = PinholeCameraIntrinsics(resolution,  degToRad(60));
+            state.camera.setLocation(Affine3DQ::Shift(0,0,0) *Affine3DQ::RotationX(degToRad(90.0)));
+            state.laserPlane = Plane3d::FormNormalAndPoint(Vector3dd(0,0,1), Vector3dd(0,0,-30));
+            outputData->outputMesh.switchColor();
+
+            static PolylineMesh model;
+           // static Mesh3D model;
+
+            scanCount++;
+
+            if (scanCount == MAX_COUNT) {
+                scanCount = 0;
+                model.mesh.dumpPLY("3Dmodel.ply");
+                model.clear();
+            }
+
+            vector<Vector3dd> line;
+            PolyLine pl;
+
+            for (size_t i = 0; i < laserPoints.size(); i+=10)
+            {
+                Vector2dd pixel(i, laserPoints[i]);
+                Ray3d ray = state.camera.rayFromPixel(pixel);
+
+                outputData->outputMesh.setColor(RGBColor::Green());
+                //outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
+
+                bool hasIntersection = false;
+                Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
+
+                if (!hasIntersection || !state.camera.isInFront(point))
+                {
+                    continue;
                 }
 
-                if (j == out.w/2)
-                    for (int i = 0; i < out.h; i++)
-                        outputData->cutConvolution.push_back(values[i]/divisor);
+                //outputData->outputMesh.setColor(RGBColor::Yellow());
+                //outputData->outputMesh.addPoint(point);
+                line.push_back(point + Vector3dd(0, 0, scanCount * 0.5));
 
-                laserPoints.push_back(maxIndex);
-                out.element(maxIndex, j) = RGBColor::Cyan();
+                //model.addPoint(point + Vector3dd(0, 0, scanCount * 0.5));
 
             }
+            pl = PolyLine(line);
+            model.addPolyline(pl);
+
+            outputData->outputMesh.setColor(RGBColor::Magenta());
+            outputData->outputMesh.add(model.mesh);
+
+            CalibrationHelpers drawer;
+            drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
+
+            Circle3d pd;
+            pd.c = Vector3dd::Zero();
+            pd.normal = state.laserPlane.normal();
+            pd.r = 70;
+            outputData->outputMesh.addCircle(pd);
+
+            outputData->mMainImage.addLayer(
+                    new ImageResultLayer(
+                            &out
+                    )
+            );
+
+            /*Channel*/
+           outputData->channel = frame->getChannel(mScannerParameters->channel());
+
+
         }
 
-        outputData->cut.reserve(out.h);
-        outputData->cutConvolution.reserve(out.h);
+        outputData->mMainImage.setHeight(mBaseParams->h());
+        outputData->mMainImage.setWidth (mBaseParams->w());
 
-        for (int i = 0; i < out.h; i++)
-            outputData->cut.push_back(frame->element(i,out.w/2).r());
+    #if 1
+        stats.setTime("Total time", start.usecsToNow());
+    #endif
+        mIdleTimer = PreciseTimer::currentTime();
 
-        GentryState state;
-        Vector2dd resolution = Vector2dd(frame->w, frame->h);
-
-        state.camera.intrinsics = PinholeCameraIntrinsics(resolution,  degToRad(60));
-        state.camera.setLocation(Affine3DQ::Shift(0,0,0) *Affine3DQ::RotationX(degToRad(90.0)));
-        state.laserPlane = Plane3d::FormNormalAndPoint(Vector3dd(0,0,1), Vector3dd(0,0,-30));
-        outputData->outputMesh.switchColor();
-        if (mIsScanning)
-      {  static PolylineMesh model;
-       // static Mesh3D model;
-
-        scanCount++;
-
-        if (scanCount == MAX_COUNT) {
-            scanCount = 0;
-            model.mesh.dumpPLY("3Dmodel.ply");
-            model.clear();
-        }
-
-        vector<Vector3dd> line;
-        PolyLine pl;
-
-        for (size_t i = 0; i < laserPoints.size(); i++)
+        for (int id = 0; id < mActiveInputsNumber; id++)
         {
-            Vector2dd pixel(i, laserPoints[i]);
-            Ray3d ray = state.camera.rayFromPixel(pixel);
-
-            outputData->outputMesh.setColor(RGBColor::Green());
-            //outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
-
-            bool hasIntersection = false;
-            Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
-
-            if (!hasIntersection || !state.camera.isInFront(point))
-            {
-                continue;
-            }
-
-           // outputData->outputMesh.setColor(RGBColor::Yellow());
-           // outputData->outputMesh.addPoint(point);
-            line.push_back(point + Vector3dd(0, 0, scanCount * 0.5));
-
-           // model.addPoint(point + Vector3dd(0, 0, framecount * 0.5));
 
         }
-        pl = PolyLine(line);
-        model.addPolyline(pl);
 
-        outputData->outputMesh.setColor(RGBColor::Magenta());
-        outputData->outputMesh.add(model.mesh);
+        outputData->frameCount = this->mFrameCount;
+        outputData->stats = stats;
 
-        CalibrationHelpers drawer;
-        drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
-
-        Circle3d pd;
-        pd.c = Vector3dd::Zero();
-        pd.normal = state.laserPlane.normal();
-        pd.r = 70;
-        outputData->outputMesh.addCircle(pd);
-
-        outputData->mMainImage.addLayer(
-                new ImageResultLayer(
-                        &out
-                )
-        );
-
-        /*Channel*/
-       outputData->channel = frame->getChannel(mScannerParameters->channel());
-
-      }
-    }
-
-    outputData->mMainImage.setHeight(mBaseParams->h());
-    outputData->mMainImage.setWidth (mBaseParams->w());
-
-#if 1
-    stats.setTime("Total time", start.usecsToNow());
-#endif
-    mIdleTimer = PreciseTimer::currentTime();
-
-    for (int id = 0; id < mActiveInputsNumber; id++)
-    {
-
-    }
-
-    outputData->frameCount = this->mFrameCount;
-    outputData->stats = stats;
-
-    return outputData;
+        return outputData;
 }
 /*AbstractOutputData* ScannerThread::processNewData()
 {
     Statistics stats;
-
 //    qDebug("ScannerThread::processNewData(): called");
-
     //stats.setTime(ViFlowStatisticsDescriptor::IDLE_TIME, mIdleTimer.usecsToNow());
-
     PreciseTimer start = PreciseTimer::currentTime();
 //    PreciseTimer startEl = PreciseTimer::currentTime();
-
     bool have_params = !(mScannerParameters.isNull());
     bool two_frames = have_params && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber); // FIXME: additional params needed here
-
     // We are missing data, so pause calculation
     if ((!mFrames.getCurrentFrame(Frames::LEFT_FRAME) ) ||
        ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
@@ -379,33 +385,22 @@ AbstractOutputData* ScannerThread::processNewData()
         emit errorMessage("Capture errAdding object "3d Main"or.");
         pauseCalculation();
     }
-
     recalculateCache();
-
     RGB24Buffer *frame = mFrames.getCurrentRgbFrame(Frames::LEFT_FRAME);
-
     ScannerOutputData* outputData = new ScannerOutputData();
-
     if (frame != NULL && !mScannerParameters.isNull())
     {
         RGB24Buffer red(frame);
         outputData->brightness = new G8Buffer(red.getSize());
         AbstractPainter<G8Buffer> painter(outputData->brightness);
         painter.drawCircle(100,100, 70, 50);
-
-
         vector<double> tops;
         tops.reserve(red.w);
-
         if (mScannerParameters->algo() == RedRemovalType::BRIGHTNESS)
         {
             stats.startInterval();
-
             ParallelConvolve par(&red, outputData->brightness);
             parallelable_for(0, red.h, par);
-
-
-
             stats.endInterval("Removing red");
         } else {
             /*for (int i = 0; i < red.h; i++)
@@ -417,10 +412,7 @@ AbstractOutputData* ScannerThread::processNewData()
                         pixel = RGBColor::Black();
                 }
             }
-
         }
-
-
         if (mScannerParameters->algo() != RedRemovalType::DUMMY)
         {
             for (int j = 0; j < red.w; j++)
@@ -442,19 +434,14 @@ AbstractOutputData* ScannerThread::processNewData()
                 tops.push_back( sin(j / 100.0) * 500 + red.h / 2 );
             }
         }
-
         outputData->cut.reserve(red.h);
         for (int i = 0; i < red.h; i++)
         {
             RGBColor &pixel = red.element(i,red.w/2);
             outputData->cut.push_back(pixel.r());
         }
-
-
-
         GentryState state;
         Vector2dd resolution = Vector2dd(frame->w, frame->h);
-
         state.camera.intrinsics = PinholeCameraIntrinsics(resolution,  degToRad(60));
         state.camera.setLocation(
                     Affine3DQ::Shift(0,0,10) *
@@ -464,73 +451,53 @@ AbstractOutputData* ScannerThread::processNewData()
                     Vector3dd(0,0,1),
                     Vector3dd::Zero()
                     );
-
         outputData->outputMesh.switchColor();
-
         for (size_t i = 0; i < tops.size(); i++)
         {
             Vector2dd pixel(i, tops[i]);
             Ray3d ray = state.camera.rayFromPixel(pixel);
-
             outputData->outputMesh.setColor(RGBColor::Green());
             outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
-
             bool hasIntersection = false;
             Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
-
             if (!hasIntersection || !state.camera.isInFront(point))
             {
                 continue;
             }
-
             outputData->outputMesh.setColor(RGBColor::Yellow());
             outputData->outputMesh.addPoint(point);
-
-
         }
         CalibrationHelpers drawer;
         drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
-
         Circle3d pd;
         pd.c = Vector3dd::Zero();
         pd.normal = state.laserPlane.normal();
         pd.r = 70;
         outputData->outputMesh.addCircle(pd);
-
         outputData->mMainImage.addLayer(
                 new ImageResultLayer(
                         &red
                 )
         );
-
         //
         G12Buffer *inputGray = red.toG12Buffer();
         SpatialGradient grad(inputGray);
         G12Buffer *corners = grad.findCornerPoints(mScannerParameters->cornerScore());
         outputData->corners = G8Buffer::FromG12Buffer(corners);
-
         delete_safe(corners);
         delete_safe(inputGray);
-
-
     }
-
     outputData->mMainImage.setHeight(mBaseParams->h());
     outputData->mMainImage.setWidth (mBaseParams->w());
-
 #if 1
     stats.setTime("Total time", start.usecsToNow());
 #endif
     mIdleTimer = PreciseTimer::currentTime();
-
     for (int id = 0; id < mActiveInputsNumber; id++)
     {
-
     }
-
     outputData->frameCount = this->mFrameCount;
     outputData->stats = stats;
-
     return outputData;
 }*/
 /*

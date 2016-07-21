@@ -81,9 +81,11 @@ public slots:
     void baseControlParametersChanged(QSharedPointer<BaseParameters> params);
     void camerasParametersChanged(QSharedPointer<CamerasConfigParameters> parameters);
 
+  //  void homeingWaitingFinished();
+    void scanningWaitingFinished();
 
 signals:
-    void scanningStateChanged(ScannerThread::ScanningState state, bool ScanOn);
+    void scanningStateChanged(ScannerThread::ScanningState state);
 
 protected:
     virtual AbstractOutputData *processNewData();
@@ -91,6 +93,8 @@ protected:
 private:
     bool mScanningStarted;
     bool mIsScanning;
+    bool timeToSave;
+
     PreciseTimer mIdleTimer;
 
     /* Might be misleading, but PPMLoader handles saving as well */
