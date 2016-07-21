@@ -1,13 +1,17 @@
 #include "scannercontrol.h"
 #include <QDebug>
 #include <QThread>
+#include <fstream>
+
+//std::ofstream a("arduinooutput.txt");
 
 ScannerControl::ScannerControl()
 {
     port = new QSerialPort();
-    pos = 1000;
-    moving = false;
-    connect(port,SIGNAL(readyRead()),this,SLOT(getMessage()));
+    lock = false;
+    //pos = 1000;
+    connect(port, SIGNAL(readyRead()), this, SLOT(getMessage()));
+    connect(this, SIGNAL(endOfMove()), this, SLOT(setLock()));
 }
 bool ScannerControl::openDevice(QString name)
 {
@@ -31,20 +35,31 @@ bool ScannerControl::openDevice(QString name)
 }
 
 
-void ScannerControl::close(){
+void ScannerControl::close()
+{
     if(port->isOpen())
         port->close();
 }
-bool ScannerControl::home(){
+bool ScannerControl::home()
+{
+    lock = true;
+    //while (pos);
     return sendCommand("HOME\n");
 }
 
-bool ScannerControl::laserOn(){
+bool ScannerControl::laserOn()
+{
     return sendCommand("LASER_ON\n");
 }
 
-bool ScannerControl::laserOff(){
+bool ScannerControl::laserOff()
+{
     return sendCommand("LASER_OFF\n");
+}
+
+void ScannerControl::setLock()
+{
+    lock = false;
 }
 
 /*
@@ -52,17 +67,15 @@ bool ScannerControl::laserOff(){
  */
 bool ScannerControl::step(qint64 dist)
 {
-    bool back = (dist < 0);
-    dist = abs(dist);
-
+    lock = true;
     QString command;
-    command.sprintf("MOVE %i\n",quint64(dist));
+    command.sprintf("MOVE %i\n",quint64(abs(dist)));
     qDebug()<<command;
-    if(!sendCommand(back ? "BACK\n" : "FORWARD\n"))
+    if(!sendCommand(dist < 0 ? "BACK\n" : "FORWARD\n"))
         return false;
     if(!sendCommand(command))
         return false;
-    pos += dist;
+    //pos += dist;
     return true;
 }
 
@@ -76,16 +89,24 @@ bool ScannerControl::sendCommand(QString command)
        }
     return false;
 }
-int ScannerControl::getPos(){
-    return pos;
-}
 
+/*int ScannerControl::getPos()
+{
+    return pos;
+}*/
 
 void ScannerControl::getMessage()
 {
+    SYNC_PRINT(("dada"));
     QString message = port->readAll();
+    port->clear();
     qDebug() << message;
-    if(message.contains("STOP"))
+    //a << message.toLatin1().data();
+    if(message.contains("STOP", Qt::CaseInsensitive))
+    {
+        SYNC_PRINT(("FUCK"));
         emit endOfMove();
+        lock = false;
+    }
 }
 

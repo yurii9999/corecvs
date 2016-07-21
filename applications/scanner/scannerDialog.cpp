@@ -199,11 +199,18 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state, boo
         {
             scanCtrl.laserOff();
             scanCtrl.home();
-
+            //while (scanCtrl.lock)
+            //{
+                //SYNC_PRINT(("FUCK\n"));
+            //};
+            scanCtrl.laserOn();
+            //scanCtrl.step(10000);
+            //while (scanCtrl.lock){};
+            //scanCtrl.laserOff();
 
             //sleep(30);
 
-            QTimer::singleShot(30000, this, SLOT(homeingWaitingFinished()));
+            //QTimer::singleShot(30000, this, SLOT(homeingWaitingFinished()));
 
             break;
         }
