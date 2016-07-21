@@ -194,28 +194,57 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
 
     switch (state)
     {
+    case ScannerThread::IDLE:
+            {
+                if (scanCtrl.lock)
+                {
+                    SYNC_PRINT(("1"));
+                    //emit scanningStateChanged(ScannerThread::IDLE, ScanOn);
+                    QTimer::singleShot(100, this, SLOT(homeingWaitingFinished()));
+
+                }
+                else{
+                    QTimer::singleShot(500, this, SLOT(laserOn()));
+                    QTimer::singleShot(1000, this, SLOT(laserOff()));
+                    QTimer::singleShot(1500, this, SLOT(laserOn()));
+                    QTimer::singleShot(2000, this, SLOT(laserOff()));
+                    QTimer::singleShot(2500, this, SLOT(laserOn()));
+                    QTimer::singleShot(3000, this, SLOT(laserOff()));
+
+                    emit scanningStateChanged(ScannerThread::SCANNING);
+
+                    SYNC_PRINT(("\nREADY TO SCAN\n"));
+                }
+                 break;
+             }
         case ScannerThread::HOMEING:
         {
-            if (scanCtrl.getPos() == 0)
-            {
 
-            }
             scanCtrl.laserOff();
             scanCtrl.home();
-            while(scanCtrl.getPos());
 
+           /* QMessageBox scanCompletedMessage;
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
+            scanCompletedMessage.setText("Scan Completed");
+            scanCompletedMessage.setIcon(QMessageBox::Information);
+            scanCompletedMessage.setInformativeText("Scan completed. Start scanning again?");
+            scanCompletedMessage.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            scanCompletedMessage.setDefaultButton(QMessageBox::No);
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
+            int ret = scanCompletedMessage.exec();
+            switch (ret)
+            {
+            case QMessageBox::Yes:
+                 mIsScanning = true;
+                 break;
+              case QMessageBox::Ok:
+                 mIsScanning = false;
+                 break;
+              default:
+                 mIsScanning = false;
+                 break;
+            }*/
 
-            scanCtrl.laserOn();
-            sleep(1);
-            scanCtrl.laserOff();
 
             emit scanningStateChanged(ScannerThread::IDLE);
             break;
@@ -223,27 +252,32 @@ void ScannerDialog::scanningStateChanged(ScannerThread::ScanningState state)
 
         case ScannerThread::SCANNING:
         {
-            if (scanCtrl.getPos() == 15000)
-            {
-
-            }
-
-            mIsScanning = true;
+            //mIsScanning = true;
             scanCtrl.laserOn();
             scanCtrl.step(10000);
 
+            QTimer::singleShot(30000, mCalculator, SLOT(scanningWaitingFinished()));
+            break;
+        }
+        case ScannerThread::PAUSED:
+        {
             //kokokokoko
 
             scanCtrl.laserOff();
             emit scanningStateChanged(ScannerThread::PAUSED);
         }
-        case ScannerThread::PAUSED:
-        {
-
-        }
-
     }
 }
+
+
+    void ScannerDialog::laserOn()
+    {
+        scanCtrl.laserOn();
+    }
+    void ScannerDialog::laserOff()
+    {
+        scanCtrl.laserOff();
+    }
 
 void ScannerDialog::processResult()
 {

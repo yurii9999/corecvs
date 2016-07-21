@@ -50,7 +50,11 @@ public slots:
 
     virtual void processResult();
 
-    void errorMessage(QString message);    
+    void errorMessage(QString message);
+
+   // void homeingWaitingFinished();
+    void laserOn();
+    void laserOff();
 private:
     bool mIsScanning;
 

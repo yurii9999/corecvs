@@ -39,6 +39,7 @@ ScannerThread::ScannerThread() :
    BaseCalculationThread()
   , mScanningStarted(false)
   , mIsScanning(false)
+  , timeToSave(false)
   , mFrameCount(0)
   , mPath("")
   , mScannerParameters(NULL)
@@ -89,28 +90,30 @@ void ScannerThread::toggleScanning()
 
     if (!mIsScanning)
     {
-       // mScanningStarted = true;
-        /*if (!mScanningStarted)
-        {
-            mScanningStarted = true;
-            printf("Scanning started.\n");
-            emit scanningStateChanged(SCANNING);
-        }
-        else
-        {
-            printf("Scanner homeing =) <(koko)...\n");
-            mScanningStarted = false;
-            emit scanningStateChanged(HOMEING);
-        }*/
         emit scanningStateChanged(HOMEING);
         mIsScanning = true;
     }
-  /*  else
-    {
-        mIsScanning = false;
-        printf("Scanning paused.\n");
-        emit scanningStateChanged(PAUSED);
-    }*/
+}
+
+void ScannerThread::homeingWaitingFinished()
+{
+    if (mIsScanning)
+       {
+           SYNC_PRINT(("IM HERE HIIII <3"));
+           mScanningStarted = true;
+           emit scanningStateChanged(IDLE);
+       }
+    else
+        emit scanningStateChanged(IDLE);
+}
+
+void ScannerThread::scanningWaitingFinished()
+{
+    emit scanningStateChanged(PAUSED);
+    timeToSave = true;
+    mScanningStarted = false;
+
+    mIsScanning = false;
 
 }
 
@@ -289,56 +292,58 @@ AbstractOutputData* ScannerThread::processNewData()
         outputData->outputMesh.switchColor();
 
         static PolylineMesh model;
-       // static Mesh3D model;
 
-        scanCount++;
+        if (mScanningStarted)
+        {
+            scanCount++;
 
-        if (scanCount == MAX_COUNT) {
+            vector<Vector3dd> line;
+            PolyLine pl;
+
+            for (size_t i = 0; i < laserPoints.size(); i++)
+            {
+                Vector2dd pixel(i, laserPoints[i]);
+                Ray3d ray = state.camera.rayFromPixel(pixel);
+
+                outputData->outputMesh.setColor(RGBColor::Green());
+                //outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
+
+                bool hasIntersection = false;
+                Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
+
+                if (!hasIntersection || !state.camera.isInFront(point))
+                {
+                    continue;
+                }
+
+                // outputData->outputMesh.setColor(RGBColor::Yellow());
+                // outputData->outputMesh.addPoint(point);
+                line.push_back(point + Vector3dd(0, 0, scanCount * 0.5));
+
+                // model.addPoint(point + Vector3dd(0, 0, framecount * 0.5));
+
+            }
+            pl = PolyLine(line);
+            model.addPolyline(pl);
+
+            outputData->outputMesh.setColor(RGBColor::Magenta());
+            outputData->outputMesh.add(model.mesh);
+
+            CalibrationHelpers drawer;
+            drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
+
+            Circle3d pd;
+            pd.c = Vector3dd::Zero();
+            pd.normal = state.laserPlane.normal();
+            pd.r = 70;
+            outputData->outputMesh.addCircle(pd);
+        }
+
+        if (timeToSave) {
             scanCount = 0;
             model.mesh.dumpPLY("3Dmodel.ply");
             model.clear();
         }
-
-        vector<Vector3dd> line;
-        PolyLine pl;
-
-        for (size_t i = 0; i < laserPoints.size(); i++)
-        {
-            Vector2dd pixel(i, laserPoints[i]);
-            Ray3d ray = state.camera.rayFromPixel(pixel);
-
-            outputData->outputMesh.setColor(RGBColor::Green());
-            //outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
-
-            bool hasIntersection = false;
-            Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
-
-            if (!hasIntersection || !state.camera.isInFront(point))
-            {
-                continue;
-            }
-
-           // outputData->outputMesh.setColor(RGBColor::Yellow());
-           // outputData->outputMesh.addPoint(point);
-            line.push_back(point + Vector3dd(0, 0, scanCount * 0.5));
-
-           // model.addPoint(point + Vector3dd(0, 0, framecount * 0.5));
-
-        }
-        pl = PolyLine(line);
-        model.addPolyline(pl);
-
-        outputData->outputMesh.setColor(RGBColor::Magenta());
-        outputData->outputMesh.add(model.mesh);
-
-        CalibrationHelpers drawer;
-        drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
-
-        Circle3d pd;
-        pd.c = Vector3dd::Zero();
-        pd.normal = state.laserPlane.normal();
-        pd.r = 70;
-        outputData->outputMesh.addCircle(pd);
 
         outputData->mMainImage.addLayer(
                 new ImageResultLayer(
