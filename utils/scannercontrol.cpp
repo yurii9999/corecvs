@@ -65,11 +65,11 @@ void ScannerControl::setLock()
 /*
  * negative argument moves back, positive - forward
  */
-bool ScannerControl::step(qint64 dist)
+bool ScannerControl::step(qint32 dist)
 {
     lock = true;
     QString command;
-    command.sprintf("MOVE %i\n",quint64(abs(dist)));
+    command.sprintf("MOVE %i\n",quint32(abs(dist)));
     qDebug()<<command;
     if(!sendCommand(dist < 0 ? "BACK\n" : "FORWARD\n"))
         return false;
@@ -77,6 +77,17 @@ bool ScannerControl::step(qint64 dist)
         return false;
     //pos += dist;
     return true;
+}
+
+bool ScannerControl::step(qint32 dist, qint32 num)
+{
+    QString command;
+    if (num < 16 || num > 256)
+        return false;
+    command.sprintf("SPEED %i\n", quint32(num));
+    if (!sendCommand(command))
+        return false;
+    return step(dist);
 }
 
 bool ScannerControl::sendCommand(QString command)

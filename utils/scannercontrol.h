@@ -19,7 +19,8 @@ public slots:
     bool openDevice(QString name);
     bool laserOn();
     bool laserOff();
-    bool step(qint64 dist);
+    bool step(qint32 dist);
+    bool step(qint32 dist, qint32 num); //interval is 16-256
     //int getPos();
     //int getRealPos();
     void close();
