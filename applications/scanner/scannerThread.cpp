@@ -42,6 +42,7 @@ ScannerThread::ScannerThread() :
   , timeToSave(false)
   , mFrameCount(0)
   , mPath("")
+  , scanCount(0)
   , mScannerParameters(NULL)
 {
     qRegisterMetaType<ScannerThread::ScanningState>("ScannerThread::ScanningState");
@@ -57,17 +58,14 @@ void ScannerThread::toggleScanning()
         {
             cout << "ScannerThread: Internal error. Recording toggled but no parameters provided." << endl;
         }
-
         if (mScannerParameters->path().empty())
         {
             cout << "ScannerThread: Path is empty" << endl;
         }
-
         if (mScannerParameters->fileTemplate().empty())
         {
             cout << "ScannerThread: File template is empty\n";
         }
-
         if (!mRecordingStarted)
         {
             mRecordingStarted = true;
@@ -98,13 +96,11 @@ void ScannerThread::toggleScanning()
 void ScannerThread::homeingWaitingFinished()
 {
     if (mIsScanning)
-       {
-           SYNC_PRINT(("IM HERE HIIII <3"));
-           mScanningStarted = true;
-           emit scanningStateChanged(IDLE);
-       }
-    else
-        emit scanningStateChanged(IDLE);
+    {
+       // SYNC_PRINT(("IM HERE HIIII <3"));
+        mScanningStarted = true;
+        emit scanningStateChanged(SCANNING);
+    }
 }
 
 void ScannerThread::scanningWaitingFinished()
@@ -178,13 +174,13 @@ public:
 
                 for (int c = 0; c < CORE_COUNT_OF(koef); c++, pos++)
                 {
-                     RGBColor &pixel = *pos;
-                     uint16_t r = pixel.r();
-                     uint16_t g = pixel.g();
-                     uint16_t b = pixel.b();
+                    RGBColor &pixel = *pos;
+                    uint16_t r = pixel.r();
+                    uint16_t g = pixel.g();
+                    uint16_t b = pixel.b();
 
-                     uint16_t br = (r + g + b + 1) / 3;
-                     sum += br * koef[c];
+                    uint16_t br = (r + g + b + 1) / 3;
+                    sum += br * koef[c];
                 }
                 sum /= 5;
                 sum += 128;
@@ -207,7 +203,7 @@ AbstractOutputData* ScannerThread::processNewData()
 
     // We are missing data, so pause calculation
     if ((!mFrames.getCurrentFrame(Frames::LEFT_FRAME) ) ||
-       ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
+            ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
     {
         //emit errorMessage("Capture error.");
         pauseCalculation();
@@ -310,7 +306,6 @@ AbstractOutputData* ScannerThread::processNewData()
 
                 bool hasIntersection = false;
                 Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
-
                 if (!hasIntersection || !state.camera.isInFront(point))
                 {
                     continue;
@@ -339,20 +334,21 @@ AbstractOutputData* ScannerThread::processNewData()
             outputData->outputMesh.addCircle(pd);
         }
 
-        if (timeToSave) {
+        if (timeToSave)
+        {
             scanCount = 0;
             model.mesh.dumpPLY("3Dmodel.ply");
             model.clear();
         }
 
         outputData->mMainImage.addLayer(
-                new ImageResultLayer(
+                    new ImageResultLayer(
                         &out
-                )
-        );
+                        )
+                    );
 
         /*Channel*/
-       outputData->channel = frame->getChannel(mScannerParameters->channel());
+        outputData->channel = frame->getChannel(mScannerParameters->channel());
 
 
     }
@@ -378,17 +374,12 @@ AbstractOutputData* ScannerThread::processNewData()
 /*AbstractOutputData* ScannerThread::processNewData()
 {
     Statistics stats;
-
 //    qDebug("ScannerThread::processNewData(): called");
-
     //stats.setTime(ViFlowStatisticsDescriptor::IDLE_TIME, mIdleTimer.usecsToNow());
-
     PreciseTimer start = PreciseTimer::currentTime();
 //    PreciseTimer startEl = PreciseTimer::currentTime();
-
     bool have_params = !(mScannerParameters.isNull());
     bool two_frames = have_params && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber); // FIXME: additional params needed here
-
     // We are missing data, so pause calculation
     if ((!mFrames.getCurrentFrame(Frames::LEFT_FRAME) ) ||
        ((!mFrames.getCurrentFrame(Frames::RIGHT_FRAME)) && (CamerasConfigParameters::TwoCapDev == mActiveInputsNumber)))
@@ -396,33 +387,28 @@ AbstractOutputData* ScannerThread::processNewData()
         emit errorMessage("Capture errAdding object "3d Main"or.");
         pauseCalculation();
     }
-
     recalculateCache();
-
     RGB24Buffer *frame = mFrames.getCurrentRgbFrame(Frames::LEFT_FRAME);
-
     ScannerOutputData* outputData = new ScannerOutputData();
-
     if (frame != NULL && !mScannerParameters.isNull())
     {
         RGB24Buffer red(frame);
         outputData->brightness = new G8Buffer(red.getSize());
         AbstractPainter<G8Buffer> painter(outputData->brightness);
         painter.drawCircle(100,100, 70, 50);
-
-
         vector<double> tops;
         tops.reserve(red.w);
-
         if (mScannerParameters->algo() == RedRemovalType::BRIGHTNESS)
         {
             stats.startInterval();
-
             ParallelConvolve par(&red, outputData->brightness);
             parallelable_for(0, red.h, par);
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
             stats.endInterval("Removing red");
         } else {
             /*for (int i = 0; i < red.h; i++)
@@ -434,10 +420,7 @@ AbstractOutputData* ScannerThread::processNewData()
                         pixel = RGBColor::Black();
                 }
             }
-
         }
-
-
         if (mScannerParameters->algo() != RedRemovalType::DUMMY)
         {
             for (int j = 0; j < red.w; j++)
@@ -459,19 +442,14 @@ AbstractOutputData* ScannerThread::processNewData()
                 tops.push_back( sin(j / 100.0) * 500 + red.h / 2 );
             }
         }
-
         outputData->cut.reserve(red.h);
         for (int i = 0; i < red.h; i++)
         {
             RGBColor &pixel = red.element(i,red.w/2);
             outputData->cut.push_back(pixel.r());
         }
-
-
-
         GentryState state;
         Vector2dd resolution = Vector2dd(frame->w, frame->h);
-
         state.camera.intrinsics = PinholeCameraIntrinsics(resolution,  degToRad(60));
         state.camera.setLocation(
                     Affine3DQ::Shift(0,0,10) *
@@ -481,73 +459,78 @@ AbstractOutputData* ScannerThread::processNewData()
                     Vector3dd(0,0,1),
                     Vector3dd::Zero()
                     );
-
         outputData->outputMesh.switchColor();
+<<<<<<< HEAD
 
+=======
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
         for (size_t i = 0; i < tops.size(); i++)
         {
             Vector2dd pixel(i, tops[i]);
             Ray3d ray = state.camera.rayFromPixel(pixel);
-
             outputData->outputMesh.setColor(RGBColor::Green());
             outputData->outputMesh.addLine(ray.p, ray.getPoint(60.0));
+<<<<<<< HEAD
 
+=======
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
             bool hasIntersection = false;
             Vector3dd point = state.laserPlane.intersectWith(ray, &hasIntersection);
-
             if (!hasIntersection || !state.camera.isInFront(point))
             {
                 continue;
             }
-
             outputData->outputMesh.setColor(RGBColor::Yellow());
             outputData->outputMesh.addPoint(point);
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
         }
         CalibrationHelpers drawer;
         drawer.drawCamera(outputData->outputMesh, state.camera, 1.0);
-
         Circle3d pd;
         pd.c = Vector3dd::Zero();
         pd.normal = state.laserPlane.normal();
         pd.r = 70;
         outputData->outputMesh.addCircle(pd);
-
         outputData->mMainImage.addLayer(
                 new ImageResultLayer(
                         &red
                 )
         );
+<<<<<<< HEAD
 
+=======
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
         //
         G12Buffer *inputGray = red.toG12Buffer();
         SpatialGradient grad(inputGray);
         G12Buffer *corners = grad.findCornerPoints(mScannerParameters->cornerScore());
         outputData->corners = G8Buffer::FromG12Buffer(corners);
+<<<<<<< HEAD
 
         delete_safe(corners);
         delete_safe(inputGray);
 
 
+=======
+        delete_safe(corners);
+        delete_safe(inputGray);
+>>>>>>> 89c058469aa5b52b43898bf6bca348fa8b1e7f54
     }
-
     outputData->mMainImage.setHeight(mBaseParams->h());
     outputData->mMainImage.setWidth (mBaseParams->w());
-
 #if 1
     stats.setTime("Total time", start.usecsToNow());
 #endif
     mIdleTimer = PreciseTimer::currentTime();
-
     for (int id = 0; id < mActiveInputsNumber; id++)
     {
-
     }
-
     outputData->frameCount = this->mFrameCount;
     outputData->stats = stats;
-
     return outputData;
 }*/
 /*

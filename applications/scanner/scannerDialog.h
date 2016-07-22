@@ -52,17 +52,16 @@ public slots:
 
     void errorMessage(QString message);
 
-   // void homeingWaitingFinished();
+    void homeingWaitingFinished();
     void laserOn();
     void laserOff();
+ //   void startscan();
 private:
     bool mIsScanning;
 
 
 
     ScannerControl scanCtrl;
-
-    ScannerControl scanner;
 
     ScannerParametersControlWidgetAdv *mScannerParametersControlWidget;
 
@@ -72,7 +71,7 @@ private:
     GraphPlotDialog *graph = NULL;
     GraphPlotDialog *graphConvolution = NULL;
     AdvancedImageWidget *addImage = NULL;
-	AdvancedImageWidget *brightImage = NULL;
+    AdvancedImageWidget *brightImage = NULL;
     AdvancedImageWidget *channelImage = NULL;
     AdvancedImageWidget *cornerImage = NULL;
 
