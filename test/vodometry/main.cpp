@@ -33,7 +33,7 @@ using namespace cv;
 int main()
 {
     Processor6D *proc = new OpenCVFlowProcessor;
-    ertFinder finder(700, 600, 150);
+    ertFinder finder(550, 320, 240);
 
     LibpngFileReader::registerMyself();
     LibpngFileSaver::registerMyself();
@@ -51,6 +51,8 @@ int main()
     int i = 2;
 
     RGB24Buffer traj(700, 1000);
+
+    clock_t begin = clock();
 
     while (true) {
         RGB24Buffer *in = BufferFactory::getInstance()->loadRGB24Bitmap(filename);
@@ -77,6 +79,9 @@ int main()
 
 
 //        delete_safe(in1);
+        char outname[24];
+        sprintf(outname,  "result/%d.png", i);
+
         i++;
         sprintf(filename,  "votest/%d.png", i);
 
@@ -84,8 +89,18 @@ int main()
         int y = int(t_f.y()) + 350;
         traj.drawPixel(x, y, RGBColor::Red());
 
+
+        RGB24Buffer c(in);
+        c.drawFlowBuffer3(flow);
+        BufferFactory::getInstance()->saveRGB24Bitmap(&c, outname);
+
     }
-    BufferFactory::getInstance()->saveRGB24Bitmap(&traj, "result.png");
+
+    clock_t end = clock();
+    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "Total time taken: " << elapsed_secs << "s" << endl;
+
+    BufferFactory::getInstance()->saveRGB24Bitmap(&traj, "result/result.png");
 
 //    cout << "\nR_f: \n" << R_f << "\n t_f: \n" << t_f;
     return 0;

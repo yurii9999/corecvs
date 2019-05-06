@@ -1,12 +1,12 @@
-# try use global config 
+# try use global config
 exists(../../../config.pri) {
     #message(Using global config)
     include(../../../config.pri)
-} else { 
+} else {
     message(Using local config)
     include(../config.pri)
 }
- 
+
 TEMPLATE = subdirs
 
 SUBDIRS +=     \
@@ -25,7 +25,8 @@ SUBDIRS +=     \
     avencode \
     opencvpostcalib \
     vodometry \
-    stabilization
+    stabilization \
+    calibration
 
 
 !win32 {
@@ -52,6 +53,7 @@ grab24_qt                           = grab_qt/grab24_qt.pro
 
 stabilization                       = stabilization/stabilization.pro
 vodometry                           = vodometry/vodometry.pro
+calibration                         = calibration/calibration.pro
 
 grab_N_captures                     = grab_N_captures/grab_N_captures.pro
 serialize1                          = serialize1/serialize1.pro
