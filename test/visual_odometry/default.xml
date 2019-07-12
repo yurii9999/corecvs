@@ -1,0 +1,11 @@
+<params>
+	<focal>7.070912000000e+02</focal>
+	<x0>6.018873000000e+02</x0>
+	<y0>1.831104000000e+02</y0>
+	<maxIterations>3000</maxIterations>
+	<trySize>10</trySize>
+	<algorithm>0</algorithm>
+	<threshold>0.01</threshold>
+	<sequence>sequence.txt</sequence>
+	<outname>traj.bmp</outname>
+</params>

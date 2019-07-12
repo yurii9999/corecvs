@@ -24,7 +24,7 @@ SUBDIRS +=     \
     flowtest \
     avencode \
     opencvpostcalib \
-    vodometry \
+    visual_odometry \
     stabilization \
     calibration
 
@@ -52,7 +52,7 @@ grab24                              = grab/grab24.pro
 grab24_qt                           = grab_qt/grab24_qt.pro
 
 stabilization                       = stabilization/stabilization.pro
-vodometry                           = vodometry/vodometry.pro
+visual_odometry                     = visual_odometry/visual_odometry.pro
 calibration                         = calibration/calibration.pro
 
 grab_N_captures                     = grab_N_captures/grab_N_captures.pro
